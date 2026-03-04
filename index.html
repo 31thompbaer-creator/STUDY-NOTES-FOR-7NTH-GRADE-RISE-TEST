@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EaglerCraft — Play Minecraft in Your Browser</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dirt: #5a3e1b;
+      --grass: #4a7c3f;
+      --stone: #888888;
+      --coal: #1a1a1a;
+      --sky: #87ceeb;
+      --gold: #ffd700;
+      --redstone: #cc2200;
+      --diamond: #4dd0e1;
+      --wood: #7c5a2a;
+      --neon-green: #39ff14;
+      --bg: #0d0d0d;
+      --panel: #111111;
+      --border: #333;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: #e0e0e0;
+      font-family: 'Rajdhani', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ── PIXEL NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ── PIXEL GRID BACKGROUND ── */
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(74,124,63,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74,124,63,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 0;
+      background: linear-gradient(180deg, #000 0%, #0d1a0a 100%);
+      border-bottom: 3px solid var(--grass);
+      box-shadow: 0 0 40px rgba(74,124,63,0.3), 0 4px 0 #2a4a20;
+      overflow: hidden;
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    /* Animated grass blocks in header */
+    .grass-strip {
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--grass) 0px, var(--grass) 30px,
+        #3a6030 30px, #3a6030 32px
+      );
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      grid-template-rows: repeat(4,1fr);
+      gap: 1px;
+      background: #000;
+      border: 2px solid var(--grass);
+      border-radius: 4px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(74,124,63,0.5);
+      animation: iconPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes iconPulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(74,124,63,0.5); }
+      50% { box-shadow: 0 0 24px rgba(74,124,63,0.9); }
+    }
+
+    .logo-icon span {
+      display: block;
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .logo-main {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 18px;
+      color: var(--grass);
+      text-shadow: 2px 2px 0 #1a3a10, 0 0 20px rgba(74,124,63,0.6);
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .logo-main span {
+      color: var(--gold);
+      text-shadow: 2px 2px 0 #7a4a00, 0 0 20px rgba(255,215,0,0.5);
+    }
+
+    .logo-sub {
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      color: #666;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 10px 14px;
+      background: #111;
+      border: 2px solid #333;
+      border-bottom: 4px solid #222;
+      color: #aaa;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.1s;
+      letter-spacing: 0;
+      position: relative;
+      top: 0;
+      display: inline-block;
+    }
+
+    .nav-btn:hover {
+      border-color: var(--grass);
+      color: var(--neon-green);
+      background: #0a1f08;
+      text-shadow: 0 0 8px var(--neon-green);
+      top: 2px;
+      border-bottom-width: 2px;
+    }
+
+    .nav-btn.play {
+      border-color: var(--grass);
+      color: var(--grass);
+      background: #0a1f08;
+    }
+
+    .nav-btn.play:hover {
+      background: var(--grass);
+      color: #000;
+      text-shadow: none;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 60px 32px 40px;
+      overflow: hidden;
+    }
+
+    .hero-eyebrow {
+      font-family: 'VT323', monospace;
+      font-size: 20px;
+      letter-spacing: 6px;
+      color: var(--grass);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      animation: blink 2s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(22px, 4vw, 48px);
+      color: #fff;
+      line-height: 1.4;
+      text-shadow: 4px 4px 0 #222, 0 0 60px rgba(74,124,63,0.3);
+      margin-bottom: 20px;
+    }
+
+    .hero-title .accent {
+      color: var(--gold);
+      text-shadow: 4px 4px 0 #5a3a00, 0 0 40px rgba(255,215,0,0.4);
+    }
+
+    .hero-desc {
+      font-size: 20px;
+      color: #888;
+      max-width: 600px;
+      margin: 0 auto 32px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      padding: 16px 32px;
+      background: var(--grass);
+      color: #000;
+      border: none;
+      border-bottom: 6px solid #2a4a20;
+      cursor: pointer;
+      transition: all 0.1s;
+      position: relative;
+      top: 0;
+      text-decoration: none;
+    }
+
+    .hero-cta:hover {
+      top: 4px;
+      border-bottom-width: 2px;
+      background: #5a9e4f;
+    }
+
+    .hero-cta:active {
+      top: 6px;
+      border-bottom-width: 0;
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      max-width: 800px;
+      margin: 0 auto 48px;
+      border: 2px solid #222;
+      overflow: hidden;
+    }
+
+    .stat {
+      flex: 1;
+      padding: 16px 8px;
+      text-align: center;
+      border-right: 2px solid #222;
+      background: #0a0a0a;
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-value {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      color: var(--gold);
+      text-shadow: 0 0 10px rgba(255,215,0,0.5);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* ── GAME SECTION ── */
+    .game-section {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+
+    .section-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      color: var(--grass);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #333, transparent);
+    }
+
+    .game-container {
+      background: #050505;
+      border: 3px solid #222;
+      border-top: 3px solid #333;
+      border-left: 3px solid #333;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Minecraft-style window chrome */
+    .game-chrome {
+      background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid #000;
+    }
+
+    .chrome-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    .chrome-dot.red { background: var(--redstone); box-shadow: 0 0 6px rgba(204,34,0,0.6); }
+    .chrome-dot.yellow { background: var(--gold); box-shadow: 0 0 6px rgba(255,215,0,0.4); }
+    .chrome-dot.green { background: var(--grass); box-shadow: 0 0 6px rgba(74,124,63,0.6); }
+
+    .chrome-title {
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      color: #555;
+      margin-left: 8px;
+      letter-spacing: 2px;
+    }
+
+    .chrome-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chrome-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      padding: 6px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .chrome-btn:hover {
+      border-color: var(--grass);
+      color: var(--neon-green);
+      background: #0a1f08;
+    }
+
+    .game-frame-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+    }
+
+    .game-frame-wrapper iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 5;
+      transition: opacity 0.5s;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-icon {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      grid-template-columns: repeat(8,1fr);
+      grid-template-rows: repeat(8,1fr);
+      gap: 1px;
+      animation: spinBlock 2s linear infinite;
+    }
+
+    @keyframes spinBlock {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      color: var(--grass);
+      animation: loadPulse 1s step-end infinite;
+    }
+
+    @keyframes loadPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .loading-bar-wrap {
+      width: 200px;
+      height: 16px;
+      background: #111;
+      border: 2px solid #333;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loading-bar {
+      height: 100%;
+      background: var(--grass);
+      animation: loadBar 3s ease-in-out forwards;
+      box-shadow: 0 0 10px rgba(74,124,63,0.8);
+    }
+
+    @keyframes loadBar {
+      0% { width: 0%; }
+      80% { width: 90%; }
+      100% { width: 100%; }
+    }
+
+    /* ── FEATURES ── */
+    .features-section {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2px;
+      background: #1a1a1a;
+      border: 2px solid #1a1a1a;
+    }
+
+    .feature-card {
+      background: #0a0a0a;
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s;
+      cursor: default;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent-color, var(--grass));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .feature-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .feature-card:hover {
+      background: #0d0d0d;
+    }
+
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .feature-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      color: #fff;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .feature-desc {
+      font-size: 15px;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 3px solid #1a1a1a;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: center;
+      gap: 2px;
+      margin-bottom: 24px;
+    }
+
+    /* Pixel art creeper face */
+    .creeper-pixel {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+    }
+
+    .footer-text {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      color: #333;
+      letter-spacing: 3px;
+    }
+
+    .footer-text a {
+      color: var(--grass);
+      text-decoration: none;
+    }
+
+    .footer-text a:hover {
+      text-shadow: 0 0 8px var(--neon-green);
+    }
+
+    .disclaimer {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #2a2a2a;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: var(--grass); }
+    ::-webkit-scrollbar-thumb:hover { background: #5a9e4f; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .header-inner { padding: 16px; }
+      .logo-main { font-size: 13px; }
+      nav { display: none; }
+      .hero { padding: 40px 16px 24px; }
+      .stats-bar { flex-wrap: wrap; }
+      .stat { min-width: 50%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-bg"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo-block">
+      <!-- Pixel block icon -->
+      <div class="logo-icon" id="logoIcon"></div>
+      <div class="logo-text">
+        <div class="logo-main">Eagler<span>Craft</span></div>
+        <div class="logo-sub">Play in Browser</div>
+      </div>
+    </div>
+    <nav>
+      <a href="#play" class="nav-btn play">▶ Play</a>
+      <a href="#features" class="nav-btn">Features</a>
+      <span class="nav-btn" onclick="goFullscreen()">⛶ Fullscreen</span>
+    </nav>
+  </div>
+  <div class="grass-strip"></div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">▸ Browser-Based Minecraft ◂</p>
+  <h1 class="hero-title">
+    Mine. Build.<br>
+    <span class="accent">Survive.</span>
+  </h1>
+  <p class="hero-desc">
+    Play Minecraft Classic directly in your browser — no downloads, no installs, no excuses.
+  </p>
+  <a href="#play" class="hero-cta">
+    ▶&nbsp;&nbsp;Launch Game
+  </a>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat">
+    <span class="stat-value">0</span>
+    <span class="stat-label">Downloads Needed</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">∞</span>
+    <span class="stat-label">Blocks to Place</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">100%</span>
+    <span class="stat-label">Free to Play</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">24/7</span>
+    <span class="stat-label">Always Online</span>
+  </div>
+</div>
+
+<!-- GAME -->
+<section class="game-section" id="play">
+  <p class="section-label">▸ Game Window</p>
+  <div class="game-container">
+    <div class="game-chrome">
+      <div class="chrome-dot red"></div>
+      <div class="chrome-dot yellow"></div>
+      <div class="chrome-dot green"></div>
+      <span class="chrome-title">EAGLERCRAFT — BROWSER EDITION</span>
+      <div class="chrome-actions">
+        <button class="chrome-btn" onclick="reloadGame()">↺ Reload</button>
+        <button class="chrome-btn" onclick="goFullscreen()">⛶ Full</button>
+      </div>
+    </div>
+    <div class="game-frame-wrapper">
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-icon" id="loadingIcon"></div>
+        <div class="loading-text">Loading World...</div>
+        <div class="loading-bar-wrap">
+          <div class="loading-bar"></div>
+        </div>
+      </div>
+      <iframe
+        id="eaglerFrame"
+        src="https://eaglercraft.com/play/"
+        allowfullscreen
+        allow="fullscreen"
+        onload="frameLoaded()"
+        title="EaglerCraft Game">
+      </iframe>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <p class="section-label">▸ Features</p>
+  <div class="features-grid">
+    <div class="feature-card" style="--accent-color: var(--grass)">
+      <span class="feature-icon">🌲</span>
+      <div class="feature-title">No Install Required</div>
+      <p class="feature-desc">Jump straight into the game from your browser. Zero downloads, zero setup.</p>
+    </div>
+    <div class="feature-card" style="--accent-color: var(--diamond)">
+      <span class="feature-icon">💎</span>
+      <div class="feature-title">Classic Gameplay</div>
+      <p class="feature-desc">The Minecraft experience you love — building, survival, and exploration — all in browser.</p>
+    </div>
+    <div class="feature-card" style="--accent-color: var(--gold)">
+      <span class="feature-icon">🔥</span>
+      <div class="feature-title">Multiplayer</div>
+      <p class="feature-desc">Join servers and play with friends online just like you would in the full game.</p>
+    </div>
+    <div class="feature-card" style="--accent-color: var(--redstone)">
+      <span class="feature-icon">⚡</span>
+      <div class="feature-title">Fast & Smooth</div>
+      <p class="feature-desc">Powered by modern WebGL for smooth performance directly in your browser tab.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p class="footer-text">
+    EaglerCraft is a fan project &mdash; not affiliated with <a href="https://minecraft.net" target="_blank">Mojang</a>
+  </p>
+  <p class="disclaimer">Minecraft is a trademark of Mojang AB. EaglerCraft is a third-party browser port.</p>
+</footer>
+
+<script>
+  // ── Build logo icon pixel art (grass block top) ──
+  (function() {
+    const colors = [
+      '#5a9e4f','#4a7c3f','#63b054','#3a6030',
+      '#4a7c3f','#63b054','#3a6030','#5a9e4f',
+      '#5a9e4f','#63b054','#4a7c3f','#3a6030',
+      '#4a7c3f','#5a9e4f','#63b054','#4a7c3f'
+    ];
+    const icon = document.getElementById('logoIcon');
+    colors.forEach(c => {
+      const s = document.createElement('span');
+      s.style.cssText = `background:${c};display:block`;
+      icon.appendChild(s);
+    });
+  })();
+
+  // ── Build loading spinner pixel art ──
+  (function() {
+    const icon = document.getElementById('loadingIcon');
+    const palette = ['#4a7c3f','#5a9e4f','#3a6030','#63b054','#222','#2a4a20'];
+    for (let i = 0; i < 64; i++) {
+      const s = document.createElement('span');
+      s.style.cssText = `background:${palette[Math.floor(Math.random()*palette.length)]};display:block`;
+      icon.appendChild(s);
+    }
+  })();
+
+  // ── Frame loaded handler ──
+  function frameLoaded() {
+    setTimeout(() => {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.add('hidden');
+    }, 3200);
+  }
+
+  // ── Reload game ──
+  function reloadGame() {
+    const frame = document.getElementById('eaglerFrame');
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.remove('hidden');
+    frame.src = frame.src;
+  }
+
+  // ── Fullscreen ──
+  function goFullscreen() {
+    const frame = document.getElementById('eaglerFrame');
+    if (frame.requestFullscreen) frame.requestFullscreen();
+    else if (frame.webkitRequestFullscreen) frame.webkitRequestFullscreen();
+    else if (frame.mozRequestFullScreen) frame.mozRequestFullScreen();
+  }
+
+  // ── Smooth scroll for anchor links ──
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const el = document.querySelector(a.getAttribute('href'));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // ── Animate stat counters ──
+  const targets = [0, null, 100, 24];
+  const labels = ['0', '∞', '100%', '24/7'];
+  document.querySelectorAll('.stat-value').forEach((el, i) => {
+    if (targets[i] !== null && typeof targets[i] === 'number' && targets[i] > 0) {
+      let current = 0;
+      const inc = targets[i] / 40;
+      const suffix = labels[i].replace(/[0-9]/g, '');
+      const timer = setInterval(() => {
+        current = Math.min(current + inc, targets[i]);
+        el.textContent = Math.round(current) + suffix;
+        if (current >= targets[i]) clearInterval(timer);
+      }, 30);
+    }
+  });
+</script>
+</body>
+</html>
